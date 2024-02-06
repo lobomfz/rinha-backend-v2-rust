@@ -3,12 +3,14 @@ use actix_web::{
     web::{self, Data},
     App, HttpServer, Responder,
 };
-use chrono::Utc;
 use dotenv::dotenv;
-use serde::Serialize;
-use sqlx::{postgres::PgPoolOptions, types::chrono, PgPool};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::net::TcpListener;
-use tokio::try_join;
+
+use crate::extrato::get_extrato;
+
+mod extrato;
+mod structs;
 
 #[get("/extrato")]
 async fn one(pool: web::Data<PgPool>) -> impl Responder {
@@ -41,62 +43,4 @@ async fn main() -> std::io::Result<()> {
         .await?;
 
     Ok(())
-}
-
-async fn get_extrato(id_cliente: i32, pool: sqlx::PgPool) -> Extrato {
-    let saldo_future = sqlx::query!(
-        "SELECT c.saldo as total, c.limite FROM clientes AS c WHERE c.id = $1",
-        id_cliente
-    )
-    .fetch_one(&pool);
-
-    let ultimas_transacoes_future = sqlx::query_as!(
-        Transacao,
-        r#"SELECT t.valor, t.tipo as "tipo: TipoTransacao", t.descricao, t.realizada_em
-        FROM transacoes AS t
-        WHERE t.id_cliente = $1
-        ORDER BY t.realizada_em DESC
-        LIMIT 10"#,
-        id_cliente,
-    )
-    .fetch_all(&pool);
-
-    let (saldo, ultimas_transacoes) = try_join!(saldo_future, ultimas_transacoes_future).unwrap();
-
-    return Extrato {
-        saldo: ExtratoSaldo {
-            total: saldo.total,
-            data_extrato: Utc::now(),
-            limite: saldo.limite,
-        },
-        ultimas_transacoes,
-    };
-}
-
-#[derive(sqlx::FromRow, Debug, Serialize)]
-struct ExtratoSaldo {
-    total: i32,
-    data_extrato: chrono::DateTime<chrono::Utc>,
-    limite: i32,
-}
-
-#[derive(Debug, sqlx::Type, Serialize)]
-#[sqlx(rename_all = "lowercase")]
-enum TipoTransacao {
-    D,
-    C,
-}
-
-#[derive(sqlx::FromRow, Debug, Serialize)]
-struct Transacao {
-    valor: i32,
-    tipo: TipoTransacao,
-    descricao: String,
-    realizada_em: chrono::NaiveDateTime,
-}
-
-#[derive(Debug, Serialize)]
-struct Extrato {
-    saldo: ExtratoSaldo,
-    ultimas_transacoes: Vec<Transacao>,
 }
