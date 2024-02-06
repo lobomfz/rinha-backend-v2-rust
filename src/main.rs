@@ -12,9 +12,11 @@ use crate::extrato::get_extrato;
 mod extrato;
 mod structs;
 
-#[get("/extrato")]
-async fn one(pool: web::Data<PgPool>) -> impl Responder {
-    let extrato = get_extrato(1, pool.get_ref().clone()).await;
+#[get("/clientes/{id_cliente}/extrato")]
+async fn one(path: web::Path<i32>, pool: web::Data<PgPool>) -> impl Responder {
+    let id_cliente = path.into_inner();
+
+    let extrato = get_extrato(id_cliente, pool.get_ref().clone()).await;
 
     return web::Json(extrato);
 }
