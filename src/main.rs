@@ -8,6 +8,7 @@ use dotenv::dotenv;
 use serde::Serialize;
 use sqlx::{postgres::PgPoolOptions, types::chrono, PgPool};
 use std::net::TcpListener;
+use tokio::try_join;
 
 #[get("/extrato")]
 async fn one(pool: web::Data<PgPool>) -> impl Responder {
@@ -43,15 +44,13 @@ async fn main() -> std::io::Result<()> {
 }
 
 async fn get_extrato(id_cliente: i32, pool: sqlx::PgPool) -> Extrato {
-    let saldo = sqlx::query!(
+    let saldo_future = sqlx::query!(
         "SELECT c.saldo as total, c.limite FROM clientes AS c WHERE c.id = $1",
         id_cliente
     )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    .fetch_one(&pool);
 
-    let ultimas_transacoes = sqlx::query_as!(
+    let ultimas_transacoes_future = sqlx::query_as!(
         Transacao,
         r#"SELECT t.valor, t.tipo as "tipo: TipoTransacao", t.descricao, t.realizada_em
         FROM transacoes AS t
@@ -60,9 +59,9 @@ async fn get_extrato(id_cliente: i32, pool: sqlx::PgPool) -> Extrato {
         LIMIT 10"#,
         id_cliente,
     )
-    .fetch_all(&pool)
-    .await
-    .unwrap();
+    .fetch_all(&pool);
+
+    let (saldo, ultimas_transacoes) = try_join!(saldo_future, ultimas_transacoes_future).unwrap();
 
     return Extrato {
         saldo: ExtratoSaldo {
