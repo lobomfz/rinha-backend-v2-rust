@@ -10,8 +10,9 @@ pub async fn criar_transacao(
     transacao: NovaTransacao,
     state: web::Data<AppState>,
 ) -> Result<NovaTransacaoResponse, CustomErrors> {
-    // o quão esperto é esse compiler?
-    if transacao.descricao.len() > 10 || transacao.descricao.len() < 1 {
+    let len = transacao.descricao.len();
+
+    if len > 10 || len < 1 {
         return Err(CustomErrors::InvalidInput);
     }
 
@@ -21,34 +22,6 @@ pub async fn criar_transacao(
     };
 
     let is_debito = transacao.tipo == TipoTransacao::D;
-
-    if is_debito {
-        let result = sqlx::query!(
-            "SELECT c.saldo, c.limite FROM clientes as c WHERE id = $1",
-            id_cliente
-        )
-        .fetch_optional(&mut *transaction)
-        .await;
-
-        match result {
-            Ok(cliente) => match cliente {
-                Some(cliente) => {
-                    if (cliente.saldo - transacao.valor) < -cliente.limite {
-                        transaction.rollback().await.unwrap();
-                        return Err(CustomErrors::NoBalance);
-                    }
-                }
-                None => {
-                    transaction.rollback().await.unwrap();
-                    return Err(CustomErrors::NotFound);
-                }
-            },
-            Err(_) => {
-                transaction.rollback().await.unwrap();
-                return Err(CustomErrors::NotFound);
-            }
-        }
-    }
 
     let valor = if is_debito {
         -transacao.valor
@@ -63,6 +36,11 @@ pub async fn criar_transacao(
     )
     .fetch_one(&mut *transaction)
     .await;
+
+    if cliente_result.is_err() {
+        transaction.rollback().await.unwrap();
+        return Err(CustomErrors::NotFound);
+    }
 
     let transacao_result = sqlx::query!(
         "INSERT INTO transacoes (id_cliente, valor, tipo, descricao) VALUES ($1, $2, $3, $4)",

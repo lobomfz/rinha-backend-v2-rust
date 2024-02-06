@@ -1,6 +1,5 @@
 use actix_web::web;
 use chrono::Utc;
-use tokio::try_join;
 
 use crate::{
     structs::{CustomErrors, Extrato, ExtratoSaldo, TipoTransacao, Transacao},
@@ -23,6 +22,10 @@ pub async fn get_extrato(
     .fetch_one(&mut *transaction)
     .await;
 
+    if saldo_result.is_err() {
+        return Err(CustomErrors::NotFound);
+    }
+
     let ultimas_transacoes_result = sqlx::query_as!(
         Transacao,
         r#"SELECT t.valor, t.tipo as "tipo: TipoTransacao", t.descricao, t.realizada_em
@@ -34,11 +37,6 @@ pub async fn get_extrato(
     )
     .fetch_all(&mut *transaction)
     .await;
-
-    if saldo_result.is_err() {
-        transaction.rollback().await.unwrap();
-        return Err(CustomErrors::NotFound);
-    }
 
     match saldo_result {
         Ok(saldo) => {
