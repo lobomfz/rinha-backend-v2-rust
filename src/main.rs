@@ -1,14 +1,12 @@
+use crate::extrato::get_extrato;
 use actix_web::{
     get,
     web::{self, Data},
-    App, HttpServer, Responder,
+    App, HttpResponse, HttpServer, Responder,
 };
 use dotenv::dotenv;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::net::TcpListener;
-
-use crate::extrato::get_extrato;
-
 mod extrato;
 mod structs;
 
@@ -16,9 +14,12 @@ mod structs;
 async fn one(path: web::Path<i32>, pool: web::Data<PgPool>) -> impl Responder {
     let id_cliente = path.into_inner();
 
-    let extrato = get_extrato(id_cliente, pool.get_ref().clone()).await;
-
-    return web::Json(extrato);
+    match get_extrato(id_cliente, pool.get_ref().clone()).await {
+        Ok(extrato) => HttpResponse::Ok().json(extrato),
+        Err(error) => match error {
+            structs::CustomErrors::NotFound => HttpResponse::NotFound().finish(),
+        },
+    }
 }
 
 #[tokio::main]

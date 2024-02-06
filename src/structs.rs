@@ -27,3 +27,7 @@ pub struct Extrato {
     pub saldo: ExtratoSaldo,
     pub ultimas_transacoes: Vec<Transacao>,
 }
+
+pub enum CustomErrors {
+    NotFound,
+}

@@ -1,9 +1,9 @@
 use chrono::Utc;
 use tokio::try_join;
 
-use crate::structs::{Extrato, ExtratoSaldo, TipoTransacao, Transacao};
+use crate::structs::{CustomErrors, Extrato, ExtratoSaldo, TipoTransacao, Transacao};
 
-pub async fn get_extrato(id_cliente: i32, pool: sqlx::PgPool) -> Extrato {
+pub async fn get_extrato(id_cliente: i32, pool: sqlx::PgPool) -> Result<Extrato, CustomErrors> {
     let saldo_future = sqlx::query!(
         "SELECT c.saldo as total, c.limite FROM clientes AS c WHERE c.id = $1",
         id_cliente
@@ -21,14 +21,19 @@ pub async fn get_extrato(id_cliente: i32, pool: sqlx::PgPool) -> Extrato {
     )
     .fetch_all(&pool);
 
-    let (saldo, ultimas_transacoes) = try_join!(saldo_future, ultimas_transacoes_future).unwrap();
+    let query_result = try_join!(saldo_future, ultimas_transacoes_future);
 
-    return Extrato {
-        saldo: ExtratoSaldo {
-            total: saldo.total,
-            data_extrato: Utc::now(),
-            limite: saldo.limite,
-        },
-        ultimas_transacoes,
-    };
+    match query_result {
+        Ok((saldo, ultimas_transacoes)) => {
+            return Ok(Extrato {
+                saldo: ExtratoSaldo {
+                    total: saldo.total,
+                    data_extrato: Utc::now(),
+                    limite: saldo.limite,
+                },
+                ultimas_transacoes,
+            });
+        }
+        Err(_) => return Err(CustomErrors::NotFound),
+    }
 }
