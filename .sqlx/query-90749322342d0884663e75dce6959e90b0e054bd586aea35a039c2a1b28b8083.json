@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.valor, t.tipo as \"tipo: TipoTransacao\", t.descricao, t.realizada_em\n        FROM transacoes AS t\n        WHERE t.id_cliente = $1\n        ORDER BY t.realizada_em DESC\n        LIMIT 10",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "valor",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "tipo: TipoTransacao",
+        "type_info": {
+          "Custom": {
+            "name": "tipo_transacao",
+            "kind": {
+              "Enum": [
+                "c",
+                "d"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "descricao",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "realizada_em",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "90749322342d0884663e75dce6959e90b0e054bd586aea35a039c2a1b28b8083"
+}

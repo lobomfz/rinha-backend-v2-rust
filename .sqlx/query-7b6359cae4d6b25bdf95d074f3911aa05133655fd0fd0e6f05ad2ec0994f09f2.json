@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO transacoes (id_cliente, valor, tipo, descricao) VALUES ($1, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4",
+        {
+          "Custom": {
+            "name": "tipo_transacao",
+            "kind": {
+              "Enum": [
+                "c",
+                "d"
+              ]
+            }
+          }
+        },
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7b6359cae4d6b25bdf95d074f3911aa05133655fd0fd0e6f05ad2ec0994f09f2"
+}

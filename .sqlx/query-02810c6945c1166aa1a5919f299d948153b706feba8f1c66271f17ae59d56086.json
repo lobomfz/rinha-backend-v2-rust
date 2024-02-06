@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.saldo, c.limite FROM clientes as c WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "saldo",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "limite",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "02810c6945c1166aa1a5919f299d948153b706feba8f1c66271f17ae59d56086"
+}

@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE clientes SET saldo = saldo + $1 WHERE id = $2 RETURNING limite, saldo",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "limite",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "saldo",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "413c8d99af4b3e1f06310c5282c71903dc7a54f7566b563d5b6326d8899246cc"
+}
