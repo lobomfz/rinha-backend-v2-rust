@@ -13,6 +13,10 @@ pub mod transacao;
 use actix_web::error;
 use actix_web::web::JsonConfig;
 
+pub struct AppState {
+    pub db: PgPool,
+}
+
 fn handle_error(error: structs::CustomErrors) -> HttpResponse {
     match error {
         structs::CustomErrors::NotFound => HttpResponse::NotFound().finish(),
@@ -33,10 +37,10 @@ fn json_error_handler(err: error::JsonPayloadError, _req: &HttpRequest) -> error
 }
 
 #[get("/clientes/{id_cliente}/extrato")]
-async fn extrato_route(path: web::Path<i32>, pool: web::Data<PgPool>) -> impl Responder {
+async fn extrato_route(path: web::Path<i32>, state: web::Data<AppState>) -> impl Responder {
     let id_cliente = path.into_inner();
 
-    match get_extrato(id_cliente, pool.get_ref().clone()).await {
+    match get_extrato(id_cliente, state).await {
         Ok(extrato) => HttpResponse::Ok().json(extrato),
         Err(error) => handle_error(error),
     }
@@ -46,11 +50,11 @@ async fn extrato_route(path: web::Path<i32>, pool: web::Data<PgPool>) -> impl Re
 async fn transacao_route(
     info: web::Json<NovaTransacao>,
     path: web::Path<i32>,
-    pool: web::Data<PgPool>,
+    state: web::Data<AppState>,
 ) -> impl Responder {
     let id_cliente = path.into_inner();
 
-    match criar_transacao(id_cliente, info.into_inner(), pool.get_ref().clone()).await {
+    match criar_transacao(id_cliente, info.into_inner(), state).await {
         Ok(transacao) => HttpResponse::Ok().json(transacao),
         Err(error) => handle_error(error),
     }
@@ -58,24 +62,21 @@ async fn transacao_route(
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    // std::env::set_var("RUST_LOG", "debug");
-    // env_logger::init();
-
     dotenv().ok();
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set.");
 
     let pool = PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(25)
         .connect(&database_url)
         .await
         .unwrap();
 
-    let listener = TcpListener::bind("0.0.0.0:4444").expect("Failed to create listener");
+    let listener = TcpListener::bind("0.0.0.0:3000").expect("Failed to create listener");
 
     HttpServer::new(move || {
         App::new()
-            .app_data(Data::new(pool.clone()))
+            .app_data(Data::new(AppState { db: pool.clone() }))
             .app_data(JsonConfig::default().error_handler(json_error_handler))
             .service(extrato_route)
             .service(transacao_route)

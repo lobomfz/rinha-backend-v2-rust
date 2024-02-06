@@ -16,11 +16,11 @@ runGatling() {
 startTest() {
     for i in {1..20}; do
         # 2 requests to wake the 2 api instances up :)
-        curl --fail http://localhost:4444/clientes/1/extrato && \
+        curl --fail http://localhost:9999/clientes/1/extrato && \
         echo "" && \
-        curl --fail http://localhost:4444/clientes/1/extrato && \
+        curl --fail http://localhost:9999/clientes/1/extrato && \
         echo "" && \
-        psql -d "postgres://postgres@localhost:5432/rinha" -c "delete from transacoes; update clientes set saldo = 0;" && \
+        psql -d "postgres://admin:123@localhost:5433/rinha" -c "delete from transacoes; update clientes set saldo = 0;" && \
         runGatling && \
         break || sleep 2;
     done
