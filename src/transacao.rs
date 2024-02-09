@@ -37,10 +37,20 @@ pub async fn criar_transacao(
     .fetch_one(&mut *transaction)
     .await;
 
-    if cliente_result.is_err() {
-        transaction.rollback().await.unwrap();
-        return Err(CustomErrors::NotFound);
-    }
+    let cliente = match cliente_result {
+        Ok(cliente) => {
+            if is_debito && cliente.saldo < -cliente.limite {
+                transaction.rollback().await.unwrap();
+                return Err(CustomErrors::NoBalance);
+            }
+            cliente
+        }
+        Err(err) => {
+            transaction.rollback().await.unwrap();
+            println!("Erro ao criar transação: {:?}", err);
+            return Err(CustomErrors::Internal);
+        }
+    };
 
     let transacao_result = sqlx::query!(
         "INSERT INTO transacoes (id_cliente, valor, tipo, descricao) VALUES ($1, $2, $3, $4)",
@@ -52,29 +62,18 @@ pub async fn criar_transacao(
     .execute(&mut *transaction)
     .await;
 
-    if transacao_result.is_err() {
-        transaction.rollback().await.unwrap();
-        return Err(CustomErrors::Internal);
-    }
-
-    match cliente_result {
-        Ok(cliente) => {
-            if is_debito && cliente.saldo < -cliente.limite {
-                transaction.rollback().await.unwrap();
-                return Err(CustomErrors::NoBalance);
-            }
-
+    match transacao_result {
+        Ok(_) => {
             transaction.commit().await.unwrap();
-
-            return Ok(NovaTransacaoResponse {
+            Ok(NovaTransacaoResponse {
                 limite: cliente.limite,
                 saldo: cliente.saldo,
-            });
+            })
         }
         Err(err) => {
             transaction.rollback().await.unwrap();
             println!("Erro ao criar transação: {:?}", err);
-            return Err(CustomErrors::Internal);
+            Err(CustomErrors::Internal)
         }
     }
 }

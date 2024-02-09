@@ -10,21 +10,19 @@ pub async fn get_extrato(
     id_cliente: i32,
     state: web::Data<AppState>,
 ) -> Result<Extrato, CustomErrors> {
-    let mut transaction = match state.db.begin().await {
-        Ok(transaction) => transaction,
-        Err(_) => return Err(CustomErrors::Internal),
-    };
-
     let saldo_result = sqlx::query!(
         "SELECT c.saldo as total, c.limite FROM clientes AS c WHERE c.id = $1",
         id_cliente
     )
-    .fetch_one(&mut *transaction)
+    .fetch_one(&state.db)
     .await;
 
-    if saldo_result.is_err() {
-        return Err(CustomErrors::NotFound);
-    }
+    let saldo = match saldo_result {
+        Ok(ref saldo) => saldo,
+        Err(_) => {
+            return Err(CustomErrors::NotFound);
+        }
+    };
 
     let ultimas_transacoes_result = sqlx::query_as!(
         Transacao,
@@ -35,28 +33,21 @@ pub async fn get_extrato(
         LIMIT 10"#,
         id_cliente,
     )
-    .fetch_all(&mut *transaction)
+    .fetch_all(&state.db)
     .await;
 
-    match saldo_result {
-        Ok(saldo) => {
-            let ultimas_transacoes = match ultimas_transacoes_result {
-                Ok(ultimas_transacoes) => ultimas_transacoes,
-                Err(_) => {
-                    transaction.rollback().await.unwrap();
-                    return Err(CustomErrors::Internal);
-                }
-            };
-
-            return Ok(Extrato {
-                saldo: ExtratoSaldo {
-                    total: saldo.total,
-                    data_extrato: Utc::now(),
-                    limite: saldo.limite,
-                },
-                ultimas_transacoes,
-            });
+    match ultimas_transacoes_result {
+        Ok(ultimas_transacoes) => Ok(Extrato {
+            saldo: ExtratoSaldo {
+                total: saldo.total,
+                data_extrato: Utc::now(),
+                limite: saldo.limite,
+            },
+            ultimas_transacoes,
+        }),
+        Err(err) => {
+            println!("Erro ao buscar extrato: {:?}", err);
+            return Err(CustomErrors::Internal);
         }
-        Err(_) => return Err(CustomErrors::NotFound),
     }
 }
