@@ -7,7 +7,7 @@ COPY Cargo.lock /temp/prod/
 COPY Cargo.toml /temp/prod/
 COPY src /temp/prod/src
 COPY .sqlx /temp/prod/.sqlx
-RUN cd /temp/prod && cargo build -j3 --release
+RUN cd /temp/prod && RUSTFLAGS='-C target-feature=+avx2' cargo build -j3 --release
 
 FROM base AS release
 COPY --from=build /temp/prod/target/release/rinha-rust rinha-rust
